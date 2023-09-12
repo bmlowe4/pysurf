@@ -203,7 +203,9 @@ contains
                         surfQuadsPtr(iSurf) = iQuads
 
                         ! Store surface name
-                        surfNames(iSurf) = secName
+                        !surfNames(iSurf) = secName
+                        ! Brandon: added zone name because python keys...
+                        surfNames(iSurf) = trim(zones(iZone)%name) // "_" // trim(secName)
 
                         ! Loop over the element pointer
                         do i = 2, nElem + 1
