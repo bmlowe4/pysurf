@@ -240,7 +240,9 @@ contains
                         curveBarsPtr(iCurve) = iBars
 
                         ! Store curve name
-                        curveNames(iCurve) = secName
+                        !curveNames(iCurve) = secName
+                        ! Brandon: added zone name because python...
+                        curveNames(iCurve) = trim(zones(iZone)%name) // "_" // trim(secName)
 
                         ! Loop over the element pointer
                         do i = 2, nElem + 1
