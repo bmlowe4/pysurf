@@ -82,7 +82,7 @@ contains
         numCurveBarsPtr = size(curveBarsPtr)
         numSurfNames = size(surfNames)
         numCurveNames = size(curveNames)
-
+        
         ! Print log
         print *, 'The following sections were found'
         print *, '-> Surfaces:'
@@ -150,13 +150,13 @@ contains
 
         ! Get data from the allocatable variables
         coorData = coor
-        triaConnData = triaConn
-        barsConnData = barsConn
+        if (size(triaConn,2) > 0) triaConnData = triaConn
+        if (size(barsConn,2) > 0) barsConnData = barsConn
         surfTriaPtrData = surfTriaPtr
         surfQuadsPtrData = surfQuadsPtr
         curveBarsPtrData = curveBarsPtr
-        surfNamesData = surfNames
-        curveNamesData = curveNames
+        if (size(surfNames) > 0) surfNamesData = surfNames
+        if (size(curveNames) > 0) curveNamesData = curveNames
 
     end subroutine retrieveData
 
@@ -176,6 +176,7 @@ contains
 
         ! Deallocate zones
         if (allocated(zones)) then
+            nZones = size(zones)
             do iZone = 1, nZones
                 if (allocated(zones(iZone)%sections)) then
                     do sec = 1, zones(iZone)%nSections

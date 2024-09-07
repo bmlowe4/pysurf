@@ -125,7 +125,7 @@ contains
 
             ! Call the read for unstructured meshes
             call readUnstructuredCGNS(cg, coor)
-
+            
             ! From now on we need to create connectivity arrays in the format
             ! required by ADT. That is one array for triangle connectivities
             ! and another array for quad connectivities.
@@ -190,7 +190,7 @@ contains
                     nTria = zones(iZone)%sections(sec)%nTria
                     nQuads = zones(iZone)%sections(sec)%nQuads
                     nBars = zones(iZone)%sections(sec)%nBars
-
+                    
                     ! Check if we have surface elements. We will treat curves in the else if statement
                     if (nTria + nQuads .ne. 0) then
 
@@ -203,7 +203,9 @@ contains
                         surfQuadsPtr(iSurf) = iQuads
 
                         ! Store surface name
-                        surfNames(iSurf) = secName
+                        !surfNames(iSurf) = secName
+                        ! Brandon: added zone name because python keys...
+                        surfNames(iSurf) = trim(zones(iZone)%name) // "_" // trim(secName)
 
                         ! Loop over the element pointer
                         do i = 2, nElem + 1
@@ -238,7 +240,9 @@ contains
                         curveBarsPtr(iCurve) = iBars
 
                         ! Store curve name
-                        curveNames(iCurve) = secName
+                        !curveNames(iCurve) = secName
+                        ! Brandon: added zone name because python...
+                        curveNames(iCurve) = trim(zones(iZone)%name) // "_" // trim(secName)
 
                         ! Loop over the element pointer
                         do i = 2, nElem + 1
@@ -310,6 +314,8 @@ contains
         integer(kind=intType), dimension(:), allocatable :: surfaceNodes, localSurfaceNodes
         integer(kind=intType), dimension(:, :), allocatable :: sizes
 
+        integer(kind=cgsize_t), dimension(:), allocatable :: elements
+
         integer(kind=intType) :: status(MPI_STATUS_SIZE)
         ! type(sectionDataType), allocatable :: secPtr
         integer(kind=intType), dimension(:), allocatable :: elemConn, elemPtr
@@ -360,6 +366,7 @@ contains
                 nNodes = nNodes + dims(1)
                 nCells = nCells + dims(2)
             end do
+            
 
             ! Now we know the total number of nodes we can allocate the final
             ! required space and read them in.
@@ -376,15 +383,15 @@ contains
 
                 ! Read the x,y,z-coordinates. Assume double precision
                 call cg_coord_read_f(cg, base, iZone, "CoordinateX",&
-                     & realDouble, 1, dims(1), coorX, ierr)
+                     & realDouble, int(1, cgsize_t), dims(1), coorX, ierr)
                 if (ierr .eq. CG_ERROR) call cg_error_exit_f
 
                 call cg_coord_read_f(cg, base, iZone, "CoordinateY",&
-                     & realDouble, 1, dims(1), coorY, ierr)
+                     & realDouble, int(1, cgsize_t), dims(1), coorY, ierr)
                 if (ierr .eq. CG_ERROR) call cg_error_exit_f
 
                 call cg_coord_read_f(cg, base, iZone, "CoordinateZ",&
-                     & realDouble, 1, dims(1), coorZ, ierr)
+                     & realDouble, int(1, cgsize_t), dims(1), coorZ, ierr)
                 if (ierr .eq. CG_ERROR) call cg_error_exit_f
 
                 ! Now stack all of the zones in one array
@@ -444,6 +451,7 @@ contains
                         ! all bars, tris or quads
                     case (BAR_2, TRI_3, QUAD_4)
 
+
                         ! Firstly flag this section as a surface for tris and quads
                         ! Also increment the number of surface/curve sections
                         if (type .ne. BAR_2) then
@@ -462,12 +470,21 @@ contains
                         allocate (zones(iZone)%sections(sec)%elemConn(nConn * nElem))
                         allocate (zones(iZone)%sections(sec)%elemPtr(nElem + 1))
 
+                        if (allocated(elements)) deallocate(elements)
+                        allocate (elements(nConn * nElem))
+                       
                         ! This is the actual connectivity real call.
+                        !call cg_elements_read_f(cg, base, iZone, sec, &
+                        !                        zones(iZone)%sections(sec)%elemConn, NULL, ierr)
+                        !zones(iZone)%sections(sec)%elemConn = &
+                        !    zones(iZone)%sections(sec)%elemConn + zoneStart
+                        !if (ierr .eq. CG_ERROR) call cg_error_exit_f
                         call cg_elements_read_f(cg, base, iZone, sec, &
                                                 zones(iZone)%sections(sec)%elemConn, CG_Null, ierr)
                         zones(iZone)%sections(sec)%elemConn = &
                             zones(iZone)%sections(sec)%elemConn + zoneStart
                         if (ierr .eq. CG_ERROR) call cg_error_exit_f
+                        zones(iZone)%sections(sec)%elemConn = elements + zoneStart
 
                         ! Set up the pointer which is simple in this case...it
                         ! is just an arithematic list.
@@ -625,7 +642,7 @@ contains
                 if (ierr .eq. CG_ERROR) call cg_error_exit_f
 
                 ! Allocate space for bocos
-                allocate (zones(iZone)%bocos(nBocos))
+                !allocate (zones(iZone)%bocos(nBocos))
 
                 ! On the first pass we just want to figure out the number of
                 ! *surface* nodes and the size we need for connectivity. This
@@ -777,14 +794,18 @@ contains
                 !    end if
                 ! end do bocoLoop
 
+
                 ! And free the temporary arrays
                 deallocate (coorX, coorY, coorZ)
                 zoneStart = zoneStart + dims(1)
+                
 
             end do zoneLoop
 
+            
             call cg_close_f(cg, ierr)
             if (ierr .eq. CG_ERROR) call cg_error_exit_f
+            
             deallocate (sizes)
         end if
 
