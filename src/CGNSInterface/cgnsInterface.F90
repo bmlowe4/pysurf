@@ -106,7 +106,7 @@ contains
                 stop
             end if
 
-            call cg_nzones_f(cg, base, nZones, ierr); 
+            call cg_nzones_f(cg, base, nZones, ierr)
             if (ierr .eq. CG_ERROR) call cg_error_exit_f
             print *, '   -> Number of Zones:', nzones
 
@@ -290,12 +290,8 @@ contains
 
         ! CGNS Variables
         integer(kind=intType) :: i, j, k, m, l, istart, iend, localsize, iProc
-        ! Brandon: dims is not an intType
-        !integer(kind=intType) :: ierr, base, dims(3), iZone
         integer(kind=intType) :: ierr, base, iZone
-        integer(kind=CGSIZE_T) :: dims(3)
-
-        
+        integer(cgsize_t) :: dims(3), elementDataSize, eBeg, eEnd
         integer(kind=intType) :: nNodes, nCells
         integer(kind=intType) :: tmpSym, nSymm
         character(len=32) :: zoneName, bocoName, famName
@@ -305,25 +301,24 @@ contains
         integer(kind=intType) :: nVertices, nElements, nzones
         integer(kind=intType) :: zoneType, dataType, sec, type
         integer(kind=intType) :: nSections, nElem, nConn
-        integer(kind=cgsize_t) :: eBeg, eEnd
         integer(kind=intType) :: nBdry, parentFlag
         integer(kind=intType) :: bocoType, ptsettype, nbcelem
         integer(kind=intType) :: normalIndex, normalListFlag
         integer(kind=intType) :: nDataSet, tmpInt(2)
-        integer(kind=intType) :: elementDataSize, curElement, eCount, nPnts
+        integer(kind=intType) :: curElement, eCount, nPnts
         real(kind=realType), dimension(:), allocatable :: coorX, coorY, coorZ
         integer(kind=intType), dimension(:), allocatable :: tmpConn
         real(kind=realType), dimension(:, :), allocatable, target :: allNodes
         real(kind=realType), dimension(:, :), allocatable :: localNodes
-        real(kind=realType), dimension(:, :), pointer :: elemNodes
+        ! real(kind=realType), dimension(:, :), allocatable :: elemNodes
         integer(kind=intType), dimension(:), allocatable :: surfaceNodes, localSurfaceNodes
         integer(kind=intType), dimension(:, :), allocatable :: sizes
 
         integer(kind=cgsize_t), dimension(:), allocatable :: elements
 
         integer(kind=intType) :: status(MPI_STATUS_SIZE)
-        type(sectionDataType), pointer :: secPtr
-        integer(kind=intType), dimension(:), pointer :: elemConn, elemPtr
+        ! type(sectionDataType), allocatable :: secPtr
+        integer(kind=intType), dimension(:), allocatable :: elemConn, elemPtr
 
         integer(kind=intType) :: nElemNotFound, curElem, curElemSize, localIndex, zoneStart
         real(kind=realType) :: symmSum(3)
@@ -431,10 +426,6 @@ contains
                                            type, eBeg, eEnd, nBdry, parentFlag, ierr)
                     if (ierr .eq. CG_ERROR) call cg_error_exit_f
 
-                    ! Nullify the elemPtr and elemConn, since it may not be allocated
-                    nullify (zones(iZone)%sections(sec)%elemConn, &
-                             zones(iZone)%sections(sec)%elemPtr)
-
                     ! Number of elements on this section
                     nElem = eEnd - eBeg + 1
 
@@ -489,7 +480,9 @@ contains
                         !    zones(iZone)%sections(sec)%elemConn + zoneStart
                         !if (ierr .eq. CG_ERROR) call cg_error_exit_f
                         call cg_elements_read_f(cg, base, iZone, sec, &
-                             elements, NULL, ierr)
+                                                zones(iZone)%sections(sec)%elemConn, CG_Null, ierr)
+                        zones(iZone)%sections(sec)%elemConn = &
+                            zones(iZone)%sections(sec)%elemConn + zoneStart
                         if (ierr .eq. CG_ERROR) call cg_error_exit_f
                         zones(iZone)%sections(sec)%elemConn = elements + zoneStart
 
@@ -529,7 +522,7 @@ contains
                         ! Now read the 'connectivity'--- not really, it has the
                         ! connectivity *AND* the element types.
                         call cg_elements_read_f(cg, base, iZone, sec, &
-                                                tmpConn, NULL, ierr)
+                                                tmpConn, CG_Null, ierr)
                         if (ierr .eq. CG_ERROR) call cg_error_exit_f
 
                         ! NOW we can figure out if this is actually a surface
@@ -681,7 +674,7 @@ contains
                 !       ! We have to read off the start and end elements, this
                 !       ! will always require an array of lenght 2 (tmpInt)
                 !
-                !       call cg_boco_read_f(cg, base, iZone, boco, tmpInt, NULL, ierr)
+                !       call cg_boco_read_f(cg, base, iZone, boco, tmpInt, CG_Null, ierr)
                 !       if (ierr .eq. CG_ERROR) call cg_error_exit_f
                 !       nBCElem = tmpInt(2) - tmpInt(1) + 1
                 !       allocate(zones(iZone)%bocos(boco)%BCElements(nBCElem))
@@ -697,7 +690,7 @@ contains
                 !
                 !       allocate(zones(iZone)%bocos(boco)%BCElements(nPnts))
                 !       call cg_boco_read_f(cg, base, iZone, boco, &
-                !            zones(iZone)%bocos(boco)%BCElements, NULL, ierr)
+                !            zones(iZone)%bocos(boco)%BCElements, CG_Null, ierr)
                 !       nBCElem = nPnts
                 !    end if
                 !
