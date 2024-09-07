@@ -174,6 +174,7 @@ contains
 
         ! Deallocate zones
         if (allocated(zones)) then
+            nZones = size(zones)
             do iZone = 1, nZones
                 do sec = 1, zones(iZone)%nSections
                     deallocate (zones(iZone)%sections(sec)%elemConn)
