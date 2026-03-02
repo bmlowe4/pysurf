@@ -203,7 +203,7 @@ contains
                         surfQuadsPtr(iSurf) = iQuads
 
                         ! Store surface name
-                        surfNames(iSurf) = secName
+                        surfNames(iSurf) = trim(zones(iZone)%name) // "_" // trim(secName)
 
                         ! Loop over the element pointer
                         do i = 2, nElem + 1
@@ -238,7 +238,7 @@ contains
                         curveBarsPtr(iCurve) = iBars
 
                         ! Store curve name
-                        curveNames(iCurve) = secName
+                        curveNames(iCurve) = trim(zones(iZone)%name) // "_" // trim(secName)
 
                         ! Loop over the element pointer
                         do i = 2, nElem + 1
@@ -318,6 +318,8 @@ contains
         real(kind=realType) :: symmSum(3)
         logical :: isSurface
 
+        integer(kind=cgsize_t), allocatable :: elements(:)
+
         ! ---------------------------------------
         !           Open CGNS File
         ! ---------------------------------------
@@ -376,15 +378,15 @@ contains
 
                 ! Read the x,y,z-coordinates. Assume double precision
                 call cg_coord_read_f(cg, base, iZone, "CoordinateX",&
-                     & realDouble, 1, dims(1), coorX, ierr)
+                     & realDouble, 1_cgsize_t, dims(1), coorX, ierr)
                 if (ierr .eq. CG_ERROR) call cg_error_exit_f
 
                 call cg_coord_read_f(cg, base, iZone, "CoordinateY",&
-                     & realDouble, 1, dims(1), coorY, ierr)
+                     & realDouble, 1_cgsize_t, dims(1), coorY, ierr)
                 if (ierr .eq. CG_ERROR) call cg_error_exit_f
 
                 call cg_coord_read_f(cg, base, iZone, "CoordinateZ",&
-                     & realDouble, 1, dims(1), coorZ, ierr)
+                     & realDouble, 1_cgsize_t, dims(1), coorZ, ierr)
                 if (ierr .eq. CG_ERROR) call cg_error_exit_f
 
                 ! Now stack all of the zones in one array
@@ -462,12 +464,15 @@ contains
                         allocate (zones(iZone)%sections(sec)%elemConn(nConn * nElem))
                         allocate (zones(iZone)%sections(sec)%elemPtr(nElem + 1))
 
+                        if (allocated(elements)) deallocate(elements)
+                        allocate(elements(nConn*nElem))
+
                         ! This is the actual connectivity real call.
-                        call cg_elements_read_f(cg, base, iZone, sec, &
-                                                zones(iZone)%sections(sec)%elemConn, CG_Null, ierr)
-                        zones(iZone)%sections(sec)%elemConn = &
-                            zones(iZone)%sections(sec)%elemConn + zoneStart
+                        call cg_elements_read_f(cg, base, iZone, sec, elements, CG_Null, ierr)
+                        zones(iZone)%sections(sec)%elemConn = elements + zoneStart
                         if (ierr .eq. CG_ERROR) call cg_error_exit_f
+
+                        deallocate(elements)
 
                         ! Set up the pointer which is simple in this case...it
                         ! is just an arithematic list.
